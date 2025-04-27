@@ -579,7 +579,7 @@
             html += `<div class="social-links text-center mt-4">`;
             
             if (data.user.twitter) {
-                html += `<a href="https://x.com/intent/follow?user_id=&screen_name=${data.user.twitter}" target="_blank" class="social-link social-twitter" title="Twitter"><i class="fa-brands fa-x-twitter"></i></a>`;
+                html += `<a href="https://x.com/${data.user.twitter}" target="_blank" class="social-link social-twitter" title="Twitter"><i class="fa-brands fa-x-twitter"></i></a>`;
             }
             
             if (data.user.youtube) {
