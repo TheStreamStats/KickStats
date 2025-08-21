@@ -601,7 +601,9 @@
             if (data.user.facebook) {
                 html += `<a href="https://facebook.com/${data.user.facebook}" target="_blank" class="social-link social-facebook" title="Facebook"><i class="fab fa-facebook-f"></i></a>`;
             }
-            
+                        if (data.user.streamlabs) {
+                html += `<a href="https://streamlabs.com/${data.user.streamlabs}/tip" target="_blank" class="social-link social-facebook" title="Facebook"><i class="fa-solid fa-dollar-sign"></i></a>`;
+            }
             html += `</div>`;
             
             // Add ascending links section if available
