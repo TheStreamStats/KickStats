@@ -330,6 +330,15 @@
             text-indent: -9999px;
             overflow: hidden;
         }
+        .fa-throne {
+            display: inline-block;
+            width: 1em;
+            height: 1em;
+            background: url('https://r2.fivemanage.com/image/hAIdbst40sS9.png') no-repeat center center;
+            background-size: contain;
+            text-indent: -9999px;
+            overflow: hidden;
+        }
         .channel-link {
             display: block;
             padding: 15px;
@@ -1116,7 +1125,9 @@
                 return '<i class="fab fa-discord"></i>';
             } else if (url.includes('facebook.com')) {
                 return '<i class="fab fa-facebook-f"></i>';
-            } else if (url.includes('streamloots.com')) {
+            } else if (url.includes('throne.com)) {
+                return '<i class="fa-throne"></i>';
+             } else if (url.includes('streamloots.com')) {
                 return '<i class="fa-streamloots"></i>';
              else if (url.includes('twitch.tv')) {
                 return '<i class="fab fa-twitch"></i>';
@@ -1143,9 +1154,11 @@
                 return 'Tip';
             } else if (url.includes('facebook.com')) {
                 return 'Facebook';
-            } else if (url.includes('twitch.tv')) {
+            } else if (url.includes('throne.com')) {
+                return 'Throne';
+             } else if (url.includes('twitch.tv')) {
                 return 'Twitch';
-                 } else if (url.includes('streamloots.com')) {
+            } else if (url.includes('streamloots.com')) {
                 return 'StreamLoots';
             } else {
                 return 'Link';
