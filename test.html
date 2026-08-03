@@ -490,8 +490,8 @@
         // (https://kick.com/settings/developer -> Create an App)
         // =====================================================================
         const KICK_OAUTH = {
-            clientId: 'Y01KZ2B4G3JVJJ46ZJQCA6KKD4J',           // <-- put your client_id here
-            redirectUri: window.location.origin + window.location.pathname, // must exactly match the redirect URI registered on Kick
+            clientId: 'YOUR_KICK_CLIENT_ID',           // <-- put your client_id here
+            redirectUri: 'https://thestreamstats.github.io/KickStats/', // must exactly match the redirect URI registered on Kick
             scope: 'user:read',                         // space separated scopes, add more as needed e.g. 'user:read channel:read chat:write'
             authorizeUrl: 'https://id.kick.com/oauth/authorize',
             // NOTE: Kick's token exchange step requires a client_secret.
@@ -554,7 +554,7 @@
 
         // Kick off the login flow (Authorization Code + PKCE)
         async function startKickLogin() {
-            if (!KICK_OAUTH.clientId || KICK_OAUTH.clientId === '01KZ2B4G3JVJJ46ZJQCA6KKD4J') {
+            if (!KICK_OAUTH.clientId || KICK_OAUTH.clientId === 'YOUR_KICK_CLIENT_ID') {
                 showAuthResult('Set KICK_OAUTH.clientId (and tokenExchangeProxyUrl) at the top of the script before logging in.', true);
                 return;
             }
