@@ -57,11 +57,22 @@
             font-size: 0.85rem;
             color: #aaa;
             margin-right: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .auth-status .logged-in-name {
             color: var(--kick-green);
             font-weight: 600;
+        }
+
+        .auth-status-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--kick-green);
         }
 
         .btn-kick {
@@ -703,6 +714,13 @@
 
             await handleOAuthRedirectIfPresent();
             refreshAuthUI();
+
+            // If we already had a token stored from a previous visit, go fetch
+            // and display who it belongs to right away instead of waiting for
+            // the user to click "Check Login Status".
+            if (getStoredAccessToken()) {
+                fetchAndDisplayUser({ silent: true });
+            }
         }
 
         // =====================================================================
@@ -791,6 +809,12 @@
 
                 localStorage.setItem(KICK_TOKEN_STORAGE_KEY, JSON.stringify(tokenData));
                 notify('Successfully logged in with Kick.', 'success');
+
+                // Immediately go fetch who we just logged in as, so the UI
+                // shows the username (and avatar) right away rather than
+                // requiring a manual "Check Login Status" click.
+                refreshAuthUI();
+                await fetchAndDisplayUser();
             } catch (err) {
                 console.error('Kick token exchange error:', err);
                 notify(`Login failed during token exchange: ${err.message}`, 'error');
@@ -811,11 +835,18 @@
 
         // Manual "check my login" button - actually calls Kick's API with the stored token
         async function manualCheckLoginStatus() {
+            await fetchAndDisplayUser();
+        }
+
+        // Shared helper: calls Kick's /users endpoint with the stored token and
+        // updates the auth bar with the logged-in user's name + avatar.
+        // Pass { silent: true } to skip the success toast (used on page load).
+        async function fetchAndDisplayUser(options = {}) {
             const token = getStoredAccessToken();
 
             if (!token) {
                 notify('Not logged in — no access token is stored.', 'warning');
-                return;
+                return null;
             }
 
             try {
@@ -828,7 +859,7 @@
                         localStorage.removeItem(KICK_TOKEN_STORAGE_KEY);
                         refreshAuthUI();
                         notify('Session expired or invalid. Please log in again.', 'error');
-                        return;
+                        return null;
                     }
                     throw new Error(`Kick API returned ${response.status}`);
                 }
@@ -836,13 +867,18 @@
                 const data = await response.json();
                 const user = Array.isArray(data.data) ? data.data[0] : (data.data || data);
                 const name = user && (user.name || user.username) ? (user.name || user.username) : 'unknown user';
+                const avatar = user && (user.profile_picture || user.profile_pic) ? (user.profile_picture || user.profile_pic) : null;
 
                 console.log('Kick /users response:', data);
-                notify(`Verified with Kick as: ${name}`, 'success');
-                setAuthStatusText(name);
+                if (!options.silent) {
+                    notify(`Verified with Kick as: ${name}`, 'success');
+                }
+                setAuthStatusText(name, false, avatar);
+                return user;
             } catch (err) {
                 console.error('Login check error:', err);
                 notify(`Could not verify login: ${err.message}`, 'error');
+                return null;
             }
         }
 
@@ -870,9 +906,12 @@
             }
         }
 
-        function setAuthStatusText(name, loggedInUnverified) {
+        function setAuthStatusText(name, loggedInUnverified, avatarUrl) {
             if (name) {
-                authStatus.innerHTML = `Logged in as <span class="logged-in-name">${name}</span>`;
+                const avatarHtml = avatarUrl
+                    ? `<img src="${avatarUrl}" class="auth-status-avatar" alt="${name}">`
+                    : '';
+                authStatus.innerHTML = `${avatarHtml}Logged in as <span class="logged-in-name">${name}</span>`;
             } else if (loggedInUnverified) {
                 authStatus.innerHTML = `Logged in <span class="logged-in-name">(unverified — click "Check Login Status")</span>`;
             }
@@ -1119,17 +1158,17 @@
                 return '<i class="fab fa-tiktok"></i>';
             } else if (url.includes('streamlabs.com')) {
                 return '<i class="fa-solid fa-dollar-sign"></i>';
-             } else if (url.includes('streamelements.com')) {
+            } else if (url.includes('streamelements.com')) {
                 return '<i class="fa-solid fa-dollar-sign"></i>';
             } else if (url.includes('discord.gg')) {
                 return '<i class="fab fa-discord"></i>';
             } else if (url.includes('facebook.com')) {
                 return '<i class="fab fa-facebook-f"></i>';
-            } else if (url.includes('throne.com)) {
+            } else if (url.includes('throne.com')) {
                 return '<i class="fa-throne"></i>';
-             } else if (url.includes('streamloots.com')) {
+            } else if (url.includes('streamloots.com')) {
                 return '<i class="fa-streamloots"></i>';
-             else if (url.includes('twitch.tv')) {
+            } else if (url.includes('twitch.tv')) {
                 return '<i class="fab fa-twitch"></i>';
             } else {
                 return '<i class="fas fa-link"></i>';
