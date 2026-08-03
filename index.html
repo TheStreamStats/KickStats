@@ -30,6 +30,7 @@
             margin-top: 20px;
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
             border-bottom: 3px solid var(--kick-green);
+            position: relative;
         }
         
         .app-title {
@@ -41,6 +42,70 @@
         .logo-icon {
             margin-right: 10px;
             vertical-align: middle;
+        }
+
+        .auth-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .auth-status {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-right: auto;
+        }
+
+        .auth-status .logged-in-name {
+            color: var(--kick-green);
+            font-weight: 600;
+        }
+
+        .btn-kick {
+            background-color: var(--kick-green);
+            border: none;
+            color: #000;
+            font-weight: 600;
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-kick:hover {
+            background-color: #3ddc0c;
+            color: #000;
+            box-shadow: 0 0 10px rgba(83, 252, 24, 0.5);
+        }
+
+        .btn-outline-kick {
+            background-color: transparent;
+            border: 1px solid #444;
+            color: #ccc;
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-kick:hover {
+            border-color: var(--kick-green);
+            color: var(--kick-green);
+        }
+
+        #authCheckResult {
+            display: none;
+            margin-top: 10px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            background: rgba(20, 20, 22, 0.7);
+            border: 1px solid #333;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
         
         .search-container {
@@ -353,17 +418,103 @@
             color: #aaa;
             margin-bottom: 0;
         }
+
+        /* Toast notifications */
+        #toastStack {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 340px;
+        }
+
+        .kick-toast {
+            background: linear-gradient(135deg, #232323 0%, #0e0e10 100%);
+            border: 1px solid #333;
+            border-left: 4px solid var(--kick-green);
+            border-radius: 8px;
+            padding: 12px 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            opacity: 0;
+            transform: translateX(30px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .kick-toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .kick-toast.toast-error {
+            border-left-color: #dc3545;
+        }
+
+        .kick-toast.toast-warning {
+            border-left-color: #ffc107;
+        }
+
+        .kick-toast-icon {
+            font-size: 1.1rem;
+            color: var(--kick-green);
+            margin-top: 2px;
+        }
+
+        .kick-toast.toast-error .kick-toast-icon {
+            color: #dc3545;
+        }
+
+        .kick-toast.toast-warning .kick-toast-icon {
+            color: #ffc107;
+        }
+
+        .kick-toast-body {
+            flex: 1;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #eee;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .kick-toast-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .kick-toast-close:hover {
+            color: #fff;
+        }
     </style>
 </head>
 
 <body>
+    <div id="toastStack"></div>
     <div class="container">
         <!-- Header -->
-        <div class="app-header text-center">
-            <h1 class="app-title mb-0">
-                <i class="fas fa-bolt logo-icon"></i>KickStats Viewer
-            </h1>
-            <p class="text-muted mt-2 mb-0">Track and analyze Kick.com channel statistics</p>
+        <div class="app-header">
+            <div class="auth-bar">
+                <span id="authStatus" class="auth-status">Not logged in to Kick</span>
+                <button id="loginBtn" class="btn btn-kick"><i class="fas fa-right-to-bracket me-1"></i>Login with Kick</button>
+                <button id="logoutBtn" class="btn btn-outline-kick" style="display:none;"><i class="fas fa-right-from-bracket me-1"></i>Logout</button>
+                <button id="checkAuthBtn" class="btn btn-outline-kick"><i class="fas fa-circle-check me-1"></i>Check Login Status</button>
+            </div>
+            <div class="text-center">
+                <h1 class="app-title mb-0">
+                    <i class="fas fa-bolt logo-icon"></i>KickStats Viewer
+                </h1>
+                <p class="text-muted mt-2 mb-0">Track and analyze Kick.com channel statistics</p>
+            </div>
         </div>
 
         <!-- Search box -->
@@ -410,6 +561,85 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
     <script>
+        // =====================================================================
+        // KICK OAUTH CONFIG
+        // Fill these in with values from the Kick Developer Portal
+        // (https://kick.com/settings/developer -> Create an App)
+        // =====================================================================
+        const KICK_OAUTH = {
+            clientId: '01KZ2B4G3JVJJ46ZJQCA6KKD4J',
+            // Pick whichever registered redirect URI matches where this file is hosted.
+            // If you deploy this same file to both the root site and /test, register
+            // BOTH exact URLs in the Kick Developer Portal and this will auto-match
+            // whichever one the page is actually running on.
+            redirectUri: (function() {
+                const allowed = [
+                    'https://thestreamstats.github.io/KickStats/',
+                    'https://thestreamstats.github.io/KickStats/test'
+                ];
+                const current = window.location.href.split('?')[0].split('#')[0];
+                return allowed.includes(current) ? current : allowed[0];
+            })(),
+            // Matches the scopes checked in your app: read user info + read channel info.
+            // Add more scope strings here (space separated) if you check more boxes later,
+            // e.g. 'user:read channel:read events:subscribe'
+            scope: 'user:read channel:read',
+            authorizeUrl: 'https://id.kick.com/oauth/authorize',
+            // IMPORTANT: Kick's token exchange step requires a client_secret.
+            // A client_secret can NEVER be safely kept in front-end JS — anyone
+            // can view-source this page and steal it. Do NOT paste your secret
+            // here. The code -> token exchange must happen on a small backend/
+            // serverless proxy that you control, which holds the secret server-side.
+            // It should accept POST { code, code_verifier, redirect_uri } and
+            // return Kick's token JSON response.
+            tokenExchangeProxyUrl: 'YOUR_BACKEND_TOKEN_EXCHANGE_ENDPOINT',
+            userInfoUrl: 'https://api.kick.com/public/v1/users'
+        };
+
+        const KICK_TOKEN_STORAGE_KEY = 'kick_oauth_token';
+        const KICK_PKCE_VERIFIER_KEY = 'kick_oauth_pkce_verifier';
+        const KICK_OAUTH_STATE_KEY = 'kick_oauth_state';
+
+        // =====================================================================
+        // TOAST NOTIFICATIONS (lightweight, no external dependency)
+        // notify(message, type, durationMs) — type: 'success' | 'error' | 'warning'
+        // =====================================================================
+        const toastStack = document.getElementById('toastStack');
+
+        function notify(message, type = 'success', duration = 5000) {
+            const toast = document.createElement('div');
+            toast.className = `kick-toast toast-${type}`;
+
+            const iconClass = type === 'error'
+                ? 'fa-circle-exclamation'
+                : type === 'warning'
+                    ? 'fa-triangle-exclamation'
+                    : 'fa-circle-check';
+
+            toast.innerHTML = `
+                <i class="fas ${iconClass} kick-toast-icon"></i>
+                <div class="kick-toast-body"></div>
+                <button class="kick-toast-close" aria-label="Dismiss">&times;</button>
+            `;
+            toast.querySelector('.kick-toast-body').textContent = message;
+
+            toast.querySelector('.kick-toast-close').addEventListener('click', () => removeToast(toast));
+
+            toastStack.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.add('show'));
+
+            if (duration > 0) {
+                setTimeout(() => removeToast(toast), duration);
+            }
+            return toast;
+        }
+
+        function removeToast(toast) {
+            if (!toast || !toast.parentNode) return;
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 250);
+        }
+
         // Global variables
         let bannedUsers = [];
 
@@ -419,6 +649,10 @@
         const channelInfo = document.getElementById('channelInfo');
         const profileContainer = document.getElementById('profileContainer');
         const loadingElement = document.getElementById('loading');
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const checkAuthBtn = document.getElementById('checkAuthBtn');
+        const authStatus = document.getElementById('authStatus');
 
         // Event listeners
         document.addEventListener('DOMContentLoaded', init);
@@ -428,6 +662,9 @@
                 handleSearchClick();
             }
         });
+        loginBtn.addEventListener('click', startKickLogin);
+        logoutBtn.addEventListener('click', kickLogout);
+        checkAuthBtn.addEventListener('click', manualCheckLoginStatus);
 
         // Initialize
         async function init() {
@@ -437,6 +674,216 @@
             } catch (error) {
                 console.error('Error initializing:', error);
             }
+
+            await handleOAuthRedirectIfPresent();
+            refreshAuthUI();
+        }
+
+        // =====================================================================
+        // KICK LOGIN / LOGOUT / MANUAL CHECK
+        // =====================================================================
+
+        // Kick off the login flow (Authorization Code + PKCE)
+        async function startKickLogin() {
+            if (!KICK_OAUTH.clientId || KICK_OAUTH.clientId === 'YOUR_KICK_CLIENT_ID') {
+                notify('Set KICK_OAUTH.clientId (and tokenExchangeProxyUrl) at the top of the script before logging in.', 'error');
+                return;
+            }
+            if (!KICK_OAUTH.tokenExchangeProxyUrl || KICK_OAUTH.tokenExchangeProxyUrl === 'YOUR_BACKEND_TOKEN_EXCHANGE_ENDPOINT') {
+                notify('No token exchange backend configured yet — login will start but cannot finish until tokenExchangeProxyUrl is set.', 'warning');
+            }
+
+            const codeVerifier = generateCodeVerifier();
+            const codeChallenge = await generateCodeChallenge(codeVerifier);
+            const state = generateRandomString(24);
+
+            sessionStorage.setItem(KICK_PKCE_VERIFIER_KEY, codeVerifier);
+            sessionStorage.setItem(KICK_OAUTH_STATE_KEY, state);
+
+            const params = new URLSearchParams({
+                response_type: 'code',
+                client_id: KICK_OAUTH.clientId,
+                redirect_uri: KICK_OAUTH.redirectUri,
+                scope: KICK_OAUTH.scope,
+                code_challenge: codeChallenge,
+                code_challenge_method: 'S256',
+                state: state
+            });
+
+            window.location.href = `${KICK_OAUTH.authorizeUrl}?${params.toString()}`;
+        }
+
+        // If we've just been redirected back from Kick with ?code=..., exchange it for a token
+        async function handleOAuthRedirectIfPresent() {
+            const url = new URL(window.location.href);
+            const code = url.searchParams.get('code');
+            const state = url.searchParams.get('state');
+            const error = url.searchParams.get('error');
+
+            if (error) {
+                notify(`Kick login failed: ${error}`, 'error');
+                cleanupOAuthUrl();
+                return;
+            }
+
+            if (!code) return;
+
+            const expectedState = sessionStorage.getItem(KICK_OAUTH_STATE_KEY);
+            const codeVerifier = sessionStorage.getItem(KICK_PKCE_VERIFIER_KEY);
+
+            if (!expectedState || state !== expectedState || !codeVerifier) {
+                notify('Login could not be verified (state/verifier mismatch). Please try logging in again.', 'error');
+                cleanupOAuthUrl();
+                return;
+            }
+
+            if (!KICK_OAUTH.tokenExchangeProxyUrl || KICK_OAUTH.tokenExchangeProxyUrl === 'YOUR_BACKEND_TOKEN_EXCHANGE_ENDPOINT') {
+                notify('Got an authorization code from Kick, but no token exchange endpoint is configured yet.', 'error');
+                cleanupOAuthUrl();
+                return;
+            }
+
+            try {
+                const response = await fetch(KICK_OAUTH.tokenExchangeProxyUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: code,
+                        code_verifier: codeVerifier,
+                        redirect_uri: KICK_OAUTH.redirectUri
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Token exchange failed (${response.status})`);
+                }
+
+                const tokenData = await response.json();
+                if (!tokenData.access_token) {
+                    throw new Error('Token exchange response did not include an access_token');
+                }
+
+                localStorage.setItem(KICK_TOKEN_STORAGE_KEY, JSON.stringify(tokenData));
+                notify('Successfully logged in with Kick.', 'success');
+            } catch (err) {
+                console.error('Kick token exchange error:', err);
+                notify(`Login failed during token exchange: ${err.message}`, 'error');
+            } finally {
+                sessionStorage.removeItem(KICK_PKCE_VERIFIER_KEY);
+                sessionStorage.removeItem(KICK_OAUTH_STATE_KEY);
+                cleanupOAuthUrl();
+                refreshAuthUI();
+            }
+        }
+
+        // Clear the stored token
+        function kickLogout() {
+            localStorage.removeItem(KICK_TOKEN_STORAGE_KEY);
+            notify('Logged out.', 'success');
+            refreshAuthUI();
+        }
+
+        // Manual "check my login" button - actually calls Kick's API with the stored token
+        async function manualCheckLoginStatus() {
+            const token = getStoredAccessToken();
+
+            if (!token) {
+                notify('Not logged in — no access token is stored.', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(KICK_OAUTH.userInfoUrl, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        localStorage.removeItem(KICK_TOKEN_STORAGE_KEY);
+                        refreshAuthUI();
+                        notify('Session expired or invalid. Please log in again.', 'error');
+                        return;
+                    }
+                    throw new Error(`Kick API returned ${response.status}`);
+                }
+
+                const data = await response.json();
+                const user = Array.isArray(data.data) ? data.data[0] : (data.data || data);
+                const name = user && (user.name || user.username) ? (user.name || user.username) : 'unknown user';
+
+                console.log('Kick /users response:', data);
+                notify(`Verified with Kick as: ${name}`, 'success');
+                setAuthStatusText(name);
+            } catch (err) {
+                console.error('Login check error:', err);
+                notify(`Could not verify login: ${err.message}`, 'error');
+            }
+        }
+
+        function getStoredAccessToken() {
+            const raw = localStorage.getItem(KICK_TOKEN_STORAGE_KEY);
+            if (!raw) return null;
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed.access_token || null;
+            } catch {
+                return null;
+            }
+        }
+
+        function refreshAuthUI() {
+            const token = getStoredAccessToken();
+            if (token) {
+                loginBtn.style.display = 'none';
+                logoutBtn.style.display = 'inline-block';
+                setAuthStatusText(null, true);
+            } else {
+                loginBtn.style.display = 'inline-block';
+                logoutBtn.style.display = 'none';
+                authStatus.innerHTML = 'Not logged in to Kick';
+            }
+        }
+
+        function setAuthStatusText(name, loggedInUnverified) {
+            if (name) {
+                authStatus.innerHTML = `Logged in as <span class="logged-in-name">${name}</span>`;
+            } else if (loggedInUnverified) {
+                authStatus.innerHTML = `Logged in <span class="logged-in-name">(unverified — click "Check Login Status")</span>`;
+            }
+        }
+
+        function cleanupOAuthUrl() {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('code');
+            url.searchParams.delete('state');
+            url.searchParams.delete('error');
+            window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+        }
+
+        // PKCE helpers
+        function generateRandomString(length) {
+            const array = new Uint8Array(length);
+            crypto.getRandomValues(array);
+            return Array.from(array, b => ('0' + b.toString(16)).slice(-2)).join('').slice(0, length);
+        }
+
+        function generateCodeVerifier() {
+            const array = new Uint8Array(64);
+            crypto.getRandomValues(array);
+            return base64UrlEncode(array);
+        }
+
+        async function generateCodeChallenge(verifier) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(verifier);
+            const digest = await crypto.subtle.digest('SHA-256', data);
+            return base64UrlEncode(new Uint8Array(digest));
+        }
+
+        function base64UrlEncode(bytes) {
+            let str = '';
+            for (const b of bytes) str += String.fromCharCode(b);
+            return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
         // Handle search button click
@@ -445,7 +892,7 @@
             if (channelName) {
                 getChannelInfo(channelName);
             } else {
-                showError('Please enter a Kick username');
+                notify('Please enter a Kick username', 'warning');
             }
         }
 
@@ -470,6 +917,7 @@
             try {
                 // Check if user is banned
                 if (bannedUsers.includes(channelName.toLowerCase())) {
+                    notify(`User "${channelName}" is banned from being searched on this site`, 'warning');
                     showError(`User "${channelName}" is banned from being Searched on the site`);
                     return;
                 }
@@ -482,7 +930,9 @@
                 
                 const data = await response.json();
                 renderChannelProfile(data);
+                notify(`Loaded channel data for ${data.user.username}`, 'success', 3000);
             } catch (error) {
+                notify(error.message, 'error');
                 showError(error.message);
             } finally {
                 showLoading(false);
