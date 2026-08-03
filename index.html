@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -593,7 +594,8 @@
             // It should accept POST { code, code_verifier, redirect_uri } and
             // return Kick's token JSON response.
             tokenExchangeProxyUrl: 'YOUR_BACKEND_TOKEN_EXCHANGE_ENDPOINT',
-            userInfoUrl: 'https://api.kick.com/public/v1/users'
+            userInfoUrl: 'https://api.kick.com/public/v1/users',
+            channelsUrl: 'https://api.kick.com/public/v1/channels'
         };
 
         const KICK_TOKEN_STORAGE_KEY = 'kick_oauth_token';
@@ -677,6 +679,9 @@
 
             await handleOAuthRedirectIfPresent();
             refreshAuthUI();
+            if (getStoredAccessToken()) {
+                await loadOwnChannelStats();
+            }
         }
 
         // =====================================================================
@@ -814,6 +819,7 @@
                 console.log('Kick /users response:', data);
                 notify(`Verified with Kick as: ${name}`, 'success');
                 setAuthStatusText(name);
+                await loadOwnChannelStats();
             } catch (err) {
                 console.error('Login check error:', err);
                 notify(`Could not verify login: ${err.message}`, 'error');
@@ -884,6 +890,42 @@
             let str = '';
             for (const b of bytes) str += String.fromCharCode(b);
             return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        // Fetch the logged-in Kick user's own channel slug, then load its stats
+        // through the same pipeline the search box uses.
+        async function loadOwnChannelStats() {
+            const token = getStoredAccessToken();
+            if (!token) return;
+
+            try {
+                // Step 1: who am I?
+                const userResp = await fetch(KICK_OAUTH.userInfoUrl, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!userResp.ok) throw new Error(`Could not load your Kick user info (${userResp.status})`);
+                const userData = await userResp.json();
+                const me = Array.isArray(userData.data) ? userData.data[0] : (userData.data || userData);
+                if (!me || !me.user_id) throw new Error('Kick did not return a user_id for your account');
+
+                setAuthStatusText(me.name);
+
+                // Step 2: what's my channel slug?
+                const channelResp = await fetch(`${KICK_OAUTH.channelsUrl}?broadcaster_user_id=${me.user_id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!channelResp.ok) throw new Error(`Could not load your channel info (${channelResp.status})`);
+                const channelData = await channelResp.json();
+                const channel = Array.isArray(channelData.data) ? channelData.data[0] : (channelData.data || channelData);
+                if (!channel || !channel.slug) throw new Error('Kick did not return a channel slug for your account');
+
+                // Step 3: reuse the existing search pipeline to render full stats
+                channelInput.value = channel.slug;
+                await getChannelInfo(channel.slug);
+            } catch (err) {
+                console.error('loadOwnChannelStats error:', err);
+                notify(`Logged in, but couldn't load your channel stats: ${err.message}`, 'warning');
+            }
         }
 
         // Handle search button click
