@@ -716,10 +716,10 @@
             refreshAuthUI();
 
             // If we already had a token stored from a previous visit, go fetch
-            // and display who it belongs to right away instead of waiting for
-            // the user to click "Check Login Status".
+            // who it belongs to and pull up their full channel profile card
+            // right away instead of waiting for the user to search themselves.
             if (getStoredAccessToken()) {
-                fetchAndDisplayUser({ silent: true });
+                fetchAndDisplayUser({ silent: true, loadProfile: true });
             }
         }
 
@@ -811,10 +811,10 @@
                 notify('Successfully logged in with Kick.', 'success');
 
                 // Immediately go fetch who we just logged in as, so the UI
-                // shows the username (and avatar) right away rather than
-                // requiring a manual "Check Login Status" click.
+                // shows the username (and avatar) right away, and pull up
+                // their own channel profile card automatically.
                 refreshAuthUI();
-                await fetchAndDisplayUser();
+                await fetchAndDisplayUser({ loadProfile: true });
             } catch (err) {
                 console.error('Kick token exchange error:', err);
                 notify(`Login failed during token exchange: ${err.message}`, 'error');
@@ -835,7 +835,7 @@
 
         // Manual "check my login" button - actually calls Kick's API with the stored token
         async function manualCheckLoginStatus() {
-            await fetchAndDisplayUser();
+            await fetchAndDisplayUser({ loadProfile: true });
         }
 
         // Shared helper: calls Kick's /users endpoint with the stored token and
@@ -874,6 +874,14 @@
                     notify(`Verified with Kick as: ${name}`, 'success');
                 }
                 setAuthStatusText(name, false, avatar);
+
+                // Optionally pull up the logged-in user's own channel profile
+                // card, the same way a manual search would.
+                if (options.loadProfile && name && name !== 'unknown user') {
+                    channelInput.value = name;
+                    getChannelInfo(name);
+                }
+
                 return user;
             } catch (err) {
                 console.error('Login check error:', err);
